@@ -1,6 +1,9 @@
 import pandas as pd
+from datetime import datetime
+import seaborn as sns
 
 pd.options.display.max_columns = None
+sns.set_theme(style = "darkgrid")
 
 data_path = "data/"
 data_file = "Online Retail.xlsx"
@@ -48,3 +51,23 @@ sales_df = pd.merge(left = sales_df, right = sku_df, how = "left",
                     on = "StockCode")
 
 print(sales_df.nunique())
+
+sales_df["InvoiceDay"] = sales_df["InvoiceDate"] \
+                            .apply(lambda x: x.strftime("%Y-%m-%d"))
+
+sales_df["InvoiceMonthYear"] = sales_df["InvoiceDate"] \
+                                .apply(lambda x: x.strftime("%Y-%m"))
+
+sales_df["InvoiceYear"] = sales_df["InvoiceDate"] \
+                            .apply(lambda x: x.strftime("%Y"))
+
+sales_df["InvoiceSale"] = sales_df["Quantity"] * sales_df["UnitPrice"]
+
+sales_ts = sales_df.groupby(["Country", "InvoiceMonthYear"])["InvoiceSale"] \
+                    .sum().reset_index()
+
+# Plot the responses for different events and regions
+sns.lineplot(x = "InvoiceMonthYear", y = "InvoiceSale",
+             hue = "Country",
+             data = sales_ts)
+
