@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from datetime import datetime
 import seaborn as sns
 
@@ -30,7 +31,7 @@ sales_df = data_df.loc[sales_idx, :]
 print(sales_df.count())
 print(sales_df.nunique())
 
-# analysis of SKU descriptions
+# standardising of SKU descriptions
 
 sku_df = sales_df.loc[:, ["StockCode", "Description", "InvoiceDate"]] \
                  .drop_duplicates() \
@@ -52,23 +53,46 @@ sales_df = pd.merge(left = sales_df, right = sku_df, how = "left",
 
 print(sales_df.nunique())
 
-sales_df["InvoiceDay"] = sales_df["InvoiceDate"] \
-                            .apply(lambda x: x.strftime("%Y-%m-%d"))
+# monthly sales per country
 
-sales_df["InvoiceMonthYear"] = sales_df["InvoiceDate"] \
-                                .apply(lambda x: x.strftime("%Y-%m"))
+sales_df["InvoiceDay"] = sales_df["InvoiceDate"].dt.to_period("d")
 
-sales_df["InvoiceYear"] = sales_df["InvoiceDate"] \
-                            .apply(lambda x: x.strftime("%Y"))
+sales_df["InvoiceMonthYear"] = sales_df["InvoiceDate"].dt.to_period("M")
+
+sales_df["InvoiceYear"] = sales_df["InvoiceDate"].dt.to_period("Y")
 
 sales_df["InvoiceSale"] = sales_df["Quantity"] * sales_df["UnitPrice"]
 
 sales_ts = sales_df.groupby(["Country", "InvoiceMonthYear"])["InvoiceSale"] \
                     .sum().reset_index()
 
+sales_ts.columns = ["country", "year_month", "total_sales"]
+
+sales_ts.to_csv(data_path + "monthly_sales.csv")
+
+# monthly tickets per country
+
+tickets_ts = sales_df.groupby(["Country",
+                               "InvoiceMonthYear",
+                               "InvoiceNo"])["InvoiceSale"] \
+                    .sum().reset_index()
+
+tickets_ts = tickets_ts.groupby(["Country",
+                               "InvoiceMonthYear"]) \
+                    .agg({"InvoiceSale": ["mean", "median", "count"]}).reset_index()
+
+tickets_ts.columns = ["country",
+                      "year_month",
+                      "mean_invoice_sale",
+                      "median_invoice_sale",
+                      "invoice_count"]
+
+tickets_ts.to_csv(data_path + "monthly_tickets.csv")
+
+
 # Plot the responses for different events and regions
-sns.lineplot(x = "InvoiceMonthYear", y = "InvoiceSale",
-             hue = "Country",
+sns.lineplot(x = "year_month", y = "total_sales",
+             hue = "country",
              data = sales_ts)
 
 
